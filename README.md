@@ -19,6 +19,45 @@
 
 ![对象属性和多色渐变编辑](docs/images/editor-controls.png)
 
+## 从一张参考图，扩展成一套系列物料
+
+工作台的价值不只在于复刻一张海报，而是把配色、字形、纹理、构图关系和专属图形拆成可继续编辑、重新组合的对象。下面是使用对应风格工作台完成的实际衍生案例：内容、人物和画幅都可以变化，但视觉语言仍保持统一。
+
+### CoDay：几何拼块跨画幅重组
+
+| 竖版主视觉 | 16:9 横版衍生 |
+| --- | --- |
+| <img src="docs/images/case-coday-reference.jpg" alt="CoDay 竖版几何主视觉" width="300"> | <img src="docs/images/case-coday-landscape.jpg" alt="CoDay 16:9 横版衍生视觉" width="560"> |
+
+圆形、拱形、缺口和拼块被保留为可重组的视觉单元。横版不是把竖版简单裁切，而是重新安排标题与图形重心，同时延续黄、红、蓝、黑的配色和纸张颗粒感。
+
+### Herstory：从活动海报扩展到完整品牌物料
+
+| 风格起点 | 系列活动海报 |
+| --- | --- |
+| <img src="docs/images/case-herstory-reference.jpg" alt="Herstory 网点风格起点" width="300"> | <img src="docs/images/case-herstory-poster-series.jpg" alt="Herstory 系列活动海报" width="520"> |
+
+| 品牌页面、证书与大型活动物料 | 参会证件正反面与角色变体 |
+| --- | --- |
+| <img src="docs/images/case-herstory-brand-system.jpg" alt="Herstory 品牌页面证书和活动物料" width="520"> | <img src="docs/images/case-herstory-badges.jpg" alt="Herstory 参会证件正反面" width="520"> |
+
+同一套洋红、黑、白配色，人物网点、线路和代码符号可以随着嘉宾、主题与载体重新生成和排布。案例覆盖系列分享海报、网站页面、活动主视觉、证书以及选手／主办方证件，展示的不是单张模板，而是一套可以持续生长的视觉系统。
+
+### 像素分享会：从竖版招募海报到横版会场屏幕
+
+| 竖版海报 | 16:9 会场屏幕衍生 |
+| --- | --- |
+| <img src="docs/images/case-pixel-reference.jpg" alt="像素分享会竖版海报" width="300"> | <img src="docs/images/case-pixel-landscape.jpg" alt="像素分享会 16:9 横版会场屏幕" width="560"> |
+
+窗口、终端、人物与像素标题都作为独立组件参与重排。换成横向屏幕后，信息层级、窗口遮挡关系和人物动线能够重新组织，而不是被固定在原始版式里。
+
+这些案例体现了工作台的四类可控能力：
+
+- **风格可控**：统一配色、纹理、网点、像素或几何语言。
+- **内容可换**：替换标题、嘉宾、活动信息和图片，不必从头重做视觉体系。
+- **版式可重组**：同一套对象适配竖版海报、横版屏幕、证件和大型物料。
+- **工程可接力**：通过 `.posterproj` 保存对象、图层和参数，交给伙伴继续编辑。
+
 ## 安装
 
 需要能读取本地图片和文件、执行 Python 3.10+ 与 Node.js 18+ 的 Agent。生成的网页只需要现代桌面浏览器，离线可用。
