@@ -21,6 +21,11 @@ class Target {
     this.disabled = false;
     this.hidden = false;
     this.style = {setProperty(name, value) { this[name] = value; }};
+    this.children = [];
+    Object.defineProperty(this, 'innerHTML', {
+      get: () => this._innerHTML || '',
+      set: value => { this._innerHTML = value; this.children = []; }
+    });
     const classes = new Set();
     this.classList = {
       add: (...names) => names.forEach(name => classes.add(name)),
@@ -51,7 +56,7 @@ class Target {
   closest() { return null; }
   querySelector() { return null; }
   querySelectorAll() { return []; }
-  append() {}
+  append(...children) { this.children.push(...children); }
   focus() {}
   select() {}
   setPointerCapture() {}
@@ -59,7 +64,7 @@ class Target {
   click() { if (!this.disabled) this.onclick?.(); }
 }
 
-async function editorHarness(initial = C.createProject()) {
+async function editorHarness(initial = C.createProject(), modules = []) {
   const nodes = new Map();
   const downloads = [];
   const element = id => {
@@ -85,15 +90,16 @@ async function editorHarness(initial = C.createProject()) {
     getElementById: element,
     body: element('body'),
     documentElement: element('html'),
-    createElement: () => new Target(),
+    createElement: tag => Object.assign(new Target(), {tagName: tag.toUpperCase()}),
     fonts: {ready: Promise.resolve(), add() {}, delete() {}}
   });
+  const frames = [];
   const context = {
-    console, document, PosterCore: C, POSTER_INITIAL: C.clone(initial),
+    console, document, PosterCore: C, PosterStyleModules: modules, POSTER_INITIAL: C.clone(initial),
     Blob, URL: {createObjectURL(blob) { downloads.push(blob); return 'blob:test'; }, revokeObjectURL() {}},
     innerWidth: 1400, innerHeight: 900,
     localStorage: {getItem: () => null, setItem() {}},
-    setTimeout: () => 1, clearTimeout() {}, requestAnimationFrame() {},
+    setTimeout: () => 1, clearTimeout() {}, requestAnimationFrame(callback) { frames.push(callback); },
     performance: {now: () => 0},
     Image: class { set src(value) { this._src=value; queueMicrotask(()=>this.onload?.()); } },
     ResizeObserver: class { observe() {} },
@@ -134,6 +140,11 @@ async function editorHarness(initial = C.createProject()) {
   }
   return {
     element, dispatch, view, screen, downloads,
+    flushFrame() { for (const callback of frames.splice(0)) callback(0); },
+    styleControl(key) {
+      const visit = node => node.dataset.param === key ? node : node.children.map(visit).find(Boolean);
+      return element('styleControls').children.map(visit).find(Boolean);
+    },
     project: () => context.PosterEditor.getProject(),
     key: (key, properties = {}, target = element('workspace')) => dispatch(target, 'keydown', {key, ...properties}),
     pointer: (type, point, properties = {}) => dispatch(element('workspace'), type, {...screen(point), ...properties})
@@ -628,4 +639,38 @@ test('sticker panel renders compact SVG thumbnails and card click inserts editab
  h.dispatch(h.element('stickers'),'click',{target:card});
  assert.equal(h.project().objects.length,1);
  assert.notEqual(h.project().objects[0].id,'stickerShape');
+});
+
+test('live style slider previews each value and a complete drag undoes in one step',async()=>{
+ const module={id:'live-pattern',version:1,label:'实时纹样',updateMode:'live',controls:[
+  {key:'size',label:'尺寸',type:'range',min:10,max:100,step:1,default:10}
+ ],generate({params}){return[C.createObject('rect',{id:'generated',generatorKey:'root',m:C.identity(),w:params.size,h:20})];}};
+ const h=await editorHarness(C.createProject(),[module]),slider=h.styleControl('size');
+ assert.ok(slider,'style control is exposed in the sidebar');
+ slider.value='25';h.dispatch(slider,'input');h.flushFrame();
+ assert.equal(h.project().objects[0].w,25,'first drag position appears before release');
+ slider.value='40';h.dispatch(slider,'input');h.flushFrame();
+ assert.equal(h.project().objects[0].w,40,'later drag position appears before release');
+ h.dispatch(slider,'change');
+ h.element('undo').click();
+ assert.equal(h.project().objects.length,0,'one undo restores the state before the drag');
+ h.element('redo').click();
+ assert.equal(h.project().objects[0].w,40,'redo restores the final parameter');
+ h.key('s',{ctrlKey:true});await new Promise(r=>setImmediate(r));
+ const saved=JSON.parse(await h.downloads.at(-1).text());
+ assert.equal(saved.style.params['live-pattern'].size,40,'current parameter is saved with the project');
+ const reopened=await editorHarness(saved,[module]);
+ assert.equal(reopened.styleControl('size').value,40,'the slider reopens at its saved value');
+});
+
+test('manual style modules still wait for Generate and Update',async()=>{
+ const module={id:'manual-pattern',version:1,label:'手动生成',controls:[
+  {key:'size',label:'尺寸',type:'number',min:10,max:100,default:10}
+ ],generate({params}){return[C.createObject('rect',{id:'generated',generatorKey:'root',m:C.identity(),w:params.size,h:20})];}};
+ const h=await editorHarness(C.createProject(),[module]),input=h.styleControl('size');
+ input.value='35';h.dispatch(input,'change');
+ assert.equal(h.project().objects.length,0,'editing a manual control does not regenerate');
+ const button=h.element('styleControls').children[0].children.find(child=>child.tagName==='BUTTON');
+ assert.ok(button);button.click();
+ assert.equal(h.project().objects[0].w,35);
 });

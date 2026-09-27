@@ -17,7 +17,7 @@
 - 图片保存 `assetId` 和 `crop={x,y,w,h}`（0–1 归一化源图裁切）。资源保存实际内容和 mime，不引用本机文件。
 - `assets`: 以资源 ID 为键，值为 `{id,mime,data,name}`；图像支持 PNG/JPEG/WebP，字体支持 TTF/OTF/WOFF/WOFF2。SVG 作为图片导入时需先可靠净化或栅格化，不能直接执行任意外部内容。
 - `fonts`: `{family,assetId,weight,style}` 数组，字体由资源注册。无法嵌入的系统字体应在交付说明中列出。
-- `style`: `{id,version,modules,params,palette,stickers,gradientPresets?}`。模块项为 `{id,version}`；参数必须是纯数据。贴纸项 `{name,objects}` 可引用同项目资源，实例化时重新分配对象 ID。用户保存的渐变模板留在可选 `gradientPresets` 数组。
+- `style`: `{id,version,modules,params,palette,stickers,gradientPresets?}`。模块项为 `{id,version}`；`style.params` 是模块级参数，不适合存储多个副本各自不同的设置。贴纸项 `{name,objects}` 可引用同项目资源，普通贴纸实例化时重新分配对象 ID。带参数的特殊贴纸或信息组件可在各自组根保存纯 JSON `styleUnit`、在子对象保存 `styleSlot`，由专属扩展校验、更新和复制；底座会保留这些字段，但不会自动生成专属属性面板。不能只依赖普通贴纸复制几何的流程。用户保存的渐变模板留在可选 `gradientPresets` 数组。
 - `animation`: `{enabled,duration,fps,amplitude,objectIds}`；底座可选模块支持确定时间采样的整体呼吸缩放。具体点阵半径动画应由风格模块实现，不冒充已具有。
 
 用 `PosterCore.createProject()`、`PosterCore.createObject(type, overrides)` 生成合法默认值。用 `validateProject` 校验完整对象；不要自行跳过验证。脚本可加载源码并使用相同函数创建初始工程。

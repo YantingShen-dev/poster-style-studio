@@ -268,7 +268,58 @@ function stickerThumbnail(sticker){
  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="96" viewBox="${b.x-pad} ${b.y-pad} ${Math.max(1,b.w)+2*pad} ${Math.max(1,b.h)+2*pad}">${R.content(preview,0)}</svg>`;
  return'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 }
-function styleUI(){const target=$('styleControls');target.innerHTML='';const absent=project.style.modules.filter(m=>!modules.some(n=>n.id===m.id&&String(n.version)===String(m.version)));$('styleHint').textContent=absent.length?'缺少风格模块：'+absent.map(m=>m.id+' '+m.version).join('、')+'。保留已有图形；请使用随工程交付的工具。':modules.length?'参数变化保留人工调整的位置及新增对象。':'当前工具没有专属生成器。';for(const module of modules){const box=document.createElement('div'),title=document.createElement('strong');title.textContent=module.label;box.append(title);const saved=project.style.params[module.id]||{};for(const control of module.controls||[]){const label=document.createElement('label');label.textContent=control.label;let input;if(control.type==='select'){input=document.createElement('select');for(const opt of control.options){const el=document.createElement('option');el.value=opt.value;el.textContent=opt.label;input.append(el);}}else{input=document.createElement('input');input.type=control.type==='checkbox'?'checkbox':control.type==='color'?'color':control.type==='text'?'text':'number';if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;if(control.step!==undefined)input.step=control.step;if(control.maxLength!==undefined)input.maxLength=control.maxLength;}const value=saved[control.key]??control.default;if(input.type==='checkbox')input.checked=!!value;else input.value=value??'';input.dataset.param=control.key;input.setAttribute('aria-label',control.label);label.append(input);box.append(label);}const generate=document.createElement('button');generate.textContent='生成／更新';generate.disabled=project.style.modules.some(m=>m.id===module.id&&String(m.version)!==String(module.version));generate.onclick=()=>guard(()=>{const params={};for(const input of box.querySelectorAll('[data-param]'))params[input.dataset.param]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;commit(()=>C.regenerate(project,module,params));styleUI();});box.append(generate);target.append(box);}
+function styleUI(){
+ const target=$('styleControls');target.innerHTML='';
+ const absent=project.style.modules.filter(m=>!modules.some(n=>n.id===m.id&&String(n.version)===String(m.version)));
+ $('styleHint').textContent=absent.length?'缺少风格模块：'+absent.map(m=>m.id+' '+m.version).join('、')+'。保留已有图形；请使用随工程交付的工具。':modules.length?'参数变化保留人工调整的位置及新增对象。':'当前工具没有专属生成器。';
+ for(const module of modules){
+  const box=document.createElement('div'),title=document.createElement('strong'),inputs=[];
+  title.textContent=module.label;box.append(title);
+  const saved=project.style.params[module.id]||{},disabled=project.style.modules.some(m=>m.id===module.id&&String(m.version)!==String(module.version));
+  let pending=null,scheduled=false;
+  const params=()=>Object.fromEntries(inputs.map(input=>[input.dataset.param,input.type==='checkbox'?input.checked:['number','range'].includes(input.type)?Number(input.value):input.value]));
+  const apply=(input,final)=>{
+   const next=params();
+   if(JSON.stringify(next)!==JSON.stringify(project.style.params[module.id]||{})){
+    liveInput=input;
+    try{commit(()=>C.regenerate(project,module,next));}finally{liveInput=null;}
+   }
+   if(final){lastInput=null;render();}
+  };
+  for(const control of module.controls||[]){
+   const label=document.createElement('label');label.textContent=control.label;
+   let input;
+   if(control.type==='select'){
+    input=document.createElement('select');
+    for(const opt of control.options){const el=document.createElement('option');el.value=opt.value;el.textContent=opt.label;input.append(el);}
+   }else{
+    input=document.createElement('input');input.type=['checkbox','color','text','range'].includes(control.type)?control.type:'number';
+    if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;
+    if(control.step!==undefined)input.step=control.step;if(control.maxLength!==undefined)input.maxLength=control.maxLength;
+   }
+   const value=saved[control.key]??control.default;
+   if(input.type==='checkbox')input.checked=!!value;else input.value=value??'';
+   input.dataset.param=control.key;input.setAttribute('aria-label',control.label);input.disabled=disabled;
+   label.append(input);inputs.push(input);
+   if(input.type==='range'){
+    const readout=document.createElement('output');readout.textContent=input.value;label.append(readout);
+    input.addEventListener('input',()=>{readout.textContent=input.value;});
+   }
+   if(module.updateMode==='live'){
+    if(['range','color'].includes(input.type))input.addEventListener('input',()=>{
+     pending=input;
+     if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;const next=pending;pending=null;if(next)guard(()=>apply(next,false));});}
+    });
+    input.addEventListener('change',()=>{pending=null;guard(()=>apply(input,true));});
+   }
+   box.append(label);
+  }
+  if(module.updateMode!=='live'){
+   const generate=document.createElement('button');generate.textContent='生成／更新';generate.disabled=disabled;
+   generate.onclick=()=>guard(()=>{commit(()=>C.regenerate(project,module,params()));styleUI();});box.append(generate);
+  }
+  target.append(box);
+ }
  $('stickers').innerHTML=project.style.stickers.map((sticker,i)=>`<button type="button" class="sticker-card" data-sticker-index="${i}" title="${e(sticker.name)}"><span class="sticker-preview"><img src="${e(stickerThumbnail(sticker))}" alt="" loading="lazy"></span><span class="sticker-name">${e(sticker.name)}</span></button>`).join('');
 }
 $('stickers').addEventListener('click',ev=>{const card=ev.target.closest('[data-sticker-index]');if(!card)return;const sticker=project.style.stickers[Number(card.dataset.stickerIndex)];if(!sticker)return;guard(()=>commit(()=>{const temp=C.createProject();temp.objects=C.clone(sticker.objects);const ids=C.duplicate(temp,C.topIds(temp,temp.objects.map(o=>o.id)),0),clones=temp.objects.filter(o=>C.descendants(temp,ids).has(o.id));project.objects.push(...clones);selection=ids;C.transformObjects(project,ids,C.translate(20,20));}));});

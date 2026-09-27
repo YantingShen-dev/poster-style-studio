@@ -11,6 +11,7 @@ footer{height:54px;padding:6px 14px;gap:6px}.status-stack{display:flex;flex-dire
 #art [data-hit-test="false"],#art [data-hit-test="false"] *{pointer-events:none!important}
 #stickers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start}
 #stickers .sticker-card{width:100%;min-width:0;margin:0;padding:5px;display:flex;flex-direction:column;gap:5px;align-items:stretch;text-align:center;white-space:normal}
+#styleControls output{display:block;text-align:right;font-size:11px;color:#67737b}
 .sticker-preview{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:5/4;overflow:hidden;border-radius:4px;background-color:#f6f6f6;background-image:linear-gradient(45deg,#e7e9ed 25%,transparent 25%),linear-gradient(-45deg,#e7e9ed 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e7e9ed 75%),linear-gradient(-45deg,transparent 75%,#e7e9ed 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0}
 .sticker-preview img{display:block;width:100%;height:100%;object-fit:contain}
 .sticker-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.3}
