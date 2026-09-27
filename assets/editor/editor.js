@@ -1,6 +1,7 @@
 (()=>{'use strict';
 const C=window.PosterCore,R=window.PosterRender,S=window.PosterSelection,$=id=>document.getElementById(id),e=R.esc;
 let project=C.createProject(),selection=[],history=new C.History(),view={zoom:.4,x:30,y:30},tool='select',gesture=null,space=false,penBefore=null,penId=null,nodeIndex=-1,guides=[],dirty=false,saveTimer=null,imageIntent=null,patternIntent=null,playing=false,time=0,playStart=0,busy=false,liveInput=null,lastInput=null,objectClipboard=null,transformMode=null,contextPoint=null,gradientDrag=null;
+let revision=0;
 const gradientStopSelection=new Map();
 const modules=window.PosterStyleModules||[];let managedFonts=[],collapsed=new Set(),layerAnchor=null,layerDrag=null,suppressLayerClick=false;
 
@@ -129,7 +130,7 @@ $('canvasTextEditor').addEventListener('keydown',ev=>{
 function ask(text,initial){return new Promise(resolve=>{const dialog=$('inputDialog');dialog.returnValue='';$('inputTitle').textContent=text;$('inputValue').hidden=initial===undefined;$('inputValue').value=initial??'';dialog.addEventListener('close',()=>resolve(dialog.returnValue==='accept'?(initial===undefined?true:$('inputValue').value):null),{once:true});dialog.showModal();if(initial!==undefined)$('inputValue').focus();});}
 function message(text){$('message').textContent=text;}
 function guard(fn){try{const result=fn();if(result?.catch)result.catch(err=>message(err.message));return result;}catch(err){message(err.message);}}
-function markDirty(){dirty=true;$('saveStatus').textContent='有未保存修改';clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem('poster-style-studio-draft',JSON.stringify(project));$('saveStatus').textContent='已存本机草稿 · 请保存工程接力';}catch{$('saveStatus').textContent='草稿空间不足 · 请保存工程';}},700);}
+function markDirty(){revision++;dirty=true;$('saveStatus').textContent='有未保存修改';clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem('poster-style-studio-draft',JSON.stringify(project));$('saveStatus').textContent='已存本机草稿 · 请保存工程接力';}catch{$('saveStatus').textContent='草稿空间不足 · 请保存工程';}},700);}
 function commit(fn){const before=C.clone(project);try{fn();project=C.validateProject(project);if(!liveInput||lastInput!==liveInput)history.push(before);lastInput=liveInput;markDirty();render(!liveInput);}catch(err){project=before;render();throw err;}}
 function setTool(value){if(value!=='select')transformMode=null;if(penId&&value!=='pen')finishPen(false);playing=false;tool=value;document.body.dataset.tool=value;document.querySelectorAll('button[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===value);b.setAttribute('aria-pressed',String(b.dataset.tool===value));});$('toolName').textContent=toolLabels[value]||value;$('pathCommands').hidden=!['pen','node'].includes(value);render();message(value==='pen'?'点击添加直线点，拖拽添加曲线点。Enter 结束，点击首点闭合，Esc 取消。':value==='node'?'选中路径，拖动节点或控制柄；选择节点后可增加中点或删除。':value==='hand'?'拖动画布平移；Ctrl + 滚轮缩放。':value==='select'?'拖动空白处框选；Shift 追加选择；双击文字编辑。':'在画布拖拽创建；Shift 约束比例；按 V 返回选择。');}
 function renderArt(){restoreInspectorStates();const art=$('art');art.setAttribute('viewBox',`0 0 ${project.canvas.width} ${project.canvas.height}`);art.innerHTML=R.content(project,time);for(const g of art.querySelectorAll('[data-object]')){const o=project.objects.find(n=>n.id===g.dataset.object);if(o?.type==='text'){const hit=document.createElementNS('http://www.w3.org/2000/svg','rect');hit.setAttribute('width',o.w);hit.setAttribute('height',o.h);hit.setAttribute('fill','transparent');hit.setAttribute('pointer-events','all');hit.setAttribute('data-text-hit',o.id);g.insertBefore(hit,g.firstChild);if(textEditing?.id===o.id)g.style.visibility='hidden';}}$('emptyHint').hidden=project.objects.length>0;renderIsolation();}
@@ -252,7 +253,7 @@ async function prepare(p){await Promise.all(Object.values(p.assets).filter(a=>a.
 function download(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 const filename=()=>project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,100)||'poster';
 function save(){if(textEditing)finishTextEditing();if(penId)finishPen(false);project=C.validateProject(project);project.savedAt=new Date().toISOString();clearTimeout(saveTimer);download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),filename()+'.posterproj');dirty=false;$('saveStatus').textContent='工程已下载';message('把 .posterproj 文件交给伙伴即可继续编辑；首次接手请同时提供工具。');}
-async function load(raw){const candidate=C.validateProject(raw);await prepare(candidate);project=candidate;objectInspectorStates=new Map();multiInspectorStates=new Map();storedInspectorIds=new Set();inspectorIdentity='';history=new C.History();selection=[];editingGroup=null;penId=null;playing=false;time=0;dirty=false;styleUI();render();fit();$('saveStatus').textContent='工程已打开';const external=[...new Set(project.objects.filter(o=>o.type==='text'&&!project.fonts.some(f=>f.family===o.fontFamily)).map(o=>o.fontFamily))];message(external.length?'未内嵌字体依赖本机：'+external.join('、')+'。跨设备接力请导入字体或检查替代排版。':'工程已恢复，可继续编辑。');}
+async function load(raw){const candidate=C.validateProject(raw);await prepare(candidate);project=candidate;revision++;objectInspectorStates=new Map();multiInspectorStates=new Map();storedInspectorIds=new Set();inspectorIdentity='';history=new C.History();selection=[];editingGroup=null;penId=null;playing=false;time=0;dirty=false;styleUI();render();fit();$('saveStatus').textContent='工程已打开';const external=[...new Set(project.objects.filter(o=>o.type==='text'&&!project.fonts.some(f=>f.family===o.fontFamily)).map(o=>o.fontFamily))];message(external.length?'未内嵌字体依赖本机：'+external.join('、')+'。跨设备接力请导入字体或检查替代排版。':'工程已恢复，可继续编辑。');}
 $('saveProject').onclick=()=>guard(save);$('saveAs').onclick=()=>guard(async()=>{const name=await ask('另存工程名称',project.name);if(name!==null){commit(()=>project.name=name);save();}});
 $('openProject').onclick=async()=>{if(dirty&&!await ask('当前有未保存修改。确定打开另一个工程？建议先保存。'))return;$('projectFile').click();};
 $('projectFile').onchange=()=>guard(async()=>{const file=$('projectFile').files[0];$('projectFile').value='';if(!file)return;if(file.size>100*1024*1024)throw Error('工程超过 100 MB，请缩减素材后再打开');await load(JSON.parse(await file.text()));});
@@ -335,6 +336,76 @@ function selectionFit(){if(!selection.length)return;const b=selectedBounds(),r=$
 window.addEventListener('keydown',ev=>{if(ev.defaultPrevented||document.querySelector('dialog[open]')||!(ev.ctrlKey||ev.metaKey)||ev.altKey)return;if(ev.target.closest('input,textarea,select,[contenteditable=true]'))return;const key=ev.key.toLowerCase();if(key==='c'&&selection.length){ev.preventDefault();objectClipboard=C.copyObjects(project,selection);message('已复制 '+objectClipboard.roots.length+' 个对象');}else if(key==='v'&&objectClipboard){ev.preventDefault();guard(()=>commit(()=>{selection=C.pasteObjects(project,objectClipboard,ev.shiftKey?0:20);editingGroup=null;}));}},true);
 window.addEventListener('keydown',ev=>{if(ev.defaultPrevented||document.querySelector('dialog[open]'))return;const typing=ev.target.closest('input,textarea,select,[contenteditable=true]'),mod=ev.ctrlKey||ev.metaKey,key=ev.key.toLowerCase();if(mod&&['s','o'].includes(key)){ev.preventDefault();if(key==='s')guard(save);else $('openProject').click();return;}if(typing)return;if(ev.code==='Space'){space=true;document.body.classList.add('space-pan');ev.preventDefault();return;}if(mod&&key==='z'){ev.preventDefault();$(ev.shiftKey?'redo':'undo').click();return;}if(mod&&key==='y'){ev.preventDefault();$('redo').click();return;}if(mod&&key==='d'){ev.preventDefault();$('duplicate').click();return;}if(mod&&key==='g'){ev.preventDefault();$(ev.shiftKey?'ungroup':'group').click();return;}if(mod&&key==='a'){ev.preventDefault();selection=project.objects.filter(o=>o.parentId===editingGroup&&C.isVisible(project,o)&&!C.isLocked(project,o)).map(o=>o.id);render();return;}if(mod&&['[',']'].includes(key)){ev.preventDefault();$(key===']'?'layerUp':'layerDown').click();return;}if(mod&&['0','-','=','+'].includes(key)){ev.preventDefault();zoomTo(key==='0'?1:view.zoom*(key==='-'?1/1.2:1.2));return;}if(ev.shiftKey&&ev.code==='Digit1'){ev.preventDefault();fit();return;}if(ev.shiftKey&&ev.code==='Digit2'){ev.preventDefault();selectionFit();return;}if(ev.key==='?'){$('shortcutsOpen').click();return;}if(ev.key==='Escape'){if(!$('canvasContextMenu').hidden){closeContextMenu();ev.preventDefault();return;}if(transformMode){transformMode=null;render();ev.preventDefault();return;}if(editingGroup&&!gesture&&!penId){ev.preventDefault();exitGroup();return;}if(gesture?.before)project=gesture.before;gesture=null;marquee.hidden=true;document.body.classList.remove('panning','rotating');if(penId){project=penBefore;penId=null;penBefore=null;}selection=[];setTool('select');return;}if(ev.key==='Enter'&&penId)guard(()=>finishPen(false));if(ev.key==='Delete'||ev.key==='Backspace'){ev.preventDefault();$(tool==='node'&&nodeIndex>=0?'deleteNode':'delete').click();}const shortcuts={v:'select',h:'hand',p:'pen',n:'node',t:'text',r:'rect',o:'ellipse',l:'line'};if(!mod&&!ev.altKey&&shortcuts[key])setTool(shortcuts[key]);if(!mod&&!ev.altKey&&ev.key.startsWith('Arrow')&&selection.length){ev.preventDefault();const step=ev.shiftKey?10:1;guard(()=>commit(()=>C.transformObjects(project,selection,C.translate(ev.key==='ArrowLeft'?-step:ev.key==='ArrowRight'?step:0,ev.key==='ArrowUp'?-step:ev.key==='ArrowDown'?step:0))));}});
 window.addEventListener('keyup',ev=>{if(ev.code==='Space'){space=false;document.body.classList.remove('space-pan');}});window.addEventListener('blur',()=>{space=false;document.body.classList.remove('space-pan');});window.addEventListener('beforeunload',ev=>{if(dirty||(textEditing&&$('canvasTextEditor').value!==textEditing.original)){ev.preventDefault();ev.returnValue='';}});
-window.PosterEditor={getProject:()=>C.clone(project),getSVG:()=>R.svg(project,time)};
-guard(async()=>{await load(window.POSTER_INITIAL||C.createProject());});
+function agentState(full=false){return{revision,projectId:project.id,name:project.name,canvas:C.clone(project.canvas),selection:[...selection],objects:project.objects.map(o=>({id:o.id,type:o.type,name:o.name,parentId:o.parentId,m:C.clone(o.m),w:o.w,h:o.h,visible:o.visible,locked:o.locked,styleUnit:o.styleUnit||null})),styleModules:C.clone(project.style.modules),project:full?C.clone(project):undefined};}
+function agentIds(ids){if(!Array.isArray(ids)||!ids.length)throw Error('需要对象 ID 列表');const unique=[...new Set(ids)];for(const id of unique)if(!project.objects.some(o=>o.id===id))throw Error('对象不存在：'+id);return unique;}
+function mergeAgentProps(target,patch,restricted=false){if(!patch||typeof patch!=='object'||Array.isArray(patch))throw Error('属性必须是对象');for(const [key,value] of Object.entries(patch)){if(['__proto__','prototype','constructor'].includes(key))throw Error('非法属性名');if(restricted&&['id','type','parentId'].includes(key))throw Error('不能直接修改 id、type 或 parentId');if(value&&typeof value==='object'&&!Array.isArray(value)&&target[key]&&typeof target[key]==='object'&&!Array.isArray(target[key]))mergeAgentProps(target[key],value);else target[key]=C.clone(value);}}
+function agentReady(){if(textEditing)finishTextEditing();if(penId)finishPen(false);if(gesture)throw Error('请先结束当前画布拖拽');playing=false;}
+async function agentExecute(command){
+ if(!command||typeof command!=='object'||typeof command.action!=='string')throw Error('命令需要 action');
+ const action=command.action;
+ if(action==='inspect')return agentState(Boolean(command.full));
+ if(action==='svg')return{revision,svg:R.svg(project,Number(command.time)||0)};
+ agentReady();
+ if(command.expectedRevision!==revision)throw Error('工程已变化：当前 revision='+revision+'；请重新 inspect 后再操作');
+ if(action==='select'){selection=command.ids?.length?agentIds(command.ids):[];editingGroup=null;render();return agentState();}
+ if(action==='undo'||action==='redo'){const button=$(action);if(button.disabled)throw Error('当前没有可'+(action==='undo'?'撤销':'重做')+'的操作');button.click();return agentState();}
+ if(action==='fit'){fit();return agentState();}
+ if(action==='save'){save();return agentState();}
+ if(action==='export'){
+  const format=command.format||'svg',sample=Number(command.time)||0;
+  if(format==='svg')return{revision,format,data:R.svg(project,sample)};
+  if(!['png','jpg'].includes(format))throw Error('机器导出支持 SVG、PNG、JPG');
+  const scale=Number(command.scale||1);
+  if(!Number.isFinite(scale)||scale<.1||scale>4)throw Error('导出倍率无效');
+  const blob=await raster(scale,format,sample);
+  const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('位图导出失败'));reader.readAsDataURL(blob);});
+  return{revision,format,data};
+ }
+ if(action==='replace_project'){const candidate=C.validateProject(command.project);await prepare(candidate);if(command.expectedRevision!==revision){await prepare(project);throw Error('工程在加载资源期间变化；请重新 inspect');}commit(()=>{project=candidate;selection=[];editingGroup=null;});styleUI();return agentState();}
+ if(action==='import_asset'){
+  const asset=command.asset;if(!asset?.id||project.assets[asset.id])throw Error('资源 ID 无效或已存在');
+  const candidate=C.clone(project);candidate.assets[asset.id]=C.clone(asset);
+  if(command.font)candidate.fonts.push(C.clone(command.font));
+  C.validateProject(candidate);await prepare(candidate);
+  if(command.expectedRevision!==revision){await prepare(project);throw Error('工程在加载资源期间变化；请重新 inspect');}
+  commit(()=>{project.assets[asset.id]=asset;if(command.font)project.fonts.push(command.font);});
+  return agentState();
+ }
+ if(action==='batch'){
+  if(!Array.isArray(command.operations)||!command.operations.length||command.operations.length>100)throw Error('batch 需要 1–100 个操作');
+  const created=[],beforeSelection=[...selection];
+  try{commit(()=>{for(const op of command.operations){
+   if(!op||typeof op.action!=='string')throw Error('无效操作');
+   if(op.action==='create'){if(!Array.isArray(op.objects)||!op.objects.length)throw Error('create 需要 objects');for(const spec of op.objects){if(!C.TYPES.includes(spec.type))throw Error('未知对象类型');const o=C.createObject(spec.type,spec);project.objects.push(o);created.push(o.id);}selection=[...created];}
+   else if(op.action==='update'){if(!Array.isArray(op.changes)||!op.changes.length)throw Error('update 需要 changes');for(const item of op.changes){const o=project.objects.find(n=>n.id===item.id);if(!o)throw Error('对象不存在：'+item.id);if(C.isLocked(project,o)&&item.props?.locked!==false)throw Error('对象已锁定：'+item.id);mergeAgentProps(o,item.props||{},true);}selection=op.changes.map(x=>x.id);}
+   else if(op.action==='move'){const ids=agentIds(op.ids),dx=Number(op.dx),dy=Number(op.dy);if(!Number.isFinite(dx)||!Number.isFinite(dy))throw Error('位移量无效');if(ids.some(id=>C.isLocked(project,project.objects.find(o=>o.id===id))))throw Error('对象已锁定');C.transformObjects(project,ids,C.translate(dx,dy));selection=ids;}
+   else if(op.action==='delete'){C.remove(project,agentIds(op.ids));selection=[];}
+   else if(op.action==='duplicate'){selection=C.duplicate(project,agentIds(op.ids));created.push(...selection);}
+   else if(op.action==='group'){selection=[C.group(project,agentIds(op.ids))];created.push(...selection);}
+   else if(op.action==='ungroup'){const o=project.objects.find(n=>n.id===op.id);if(!o||o.type!=='group')throw Error('需要组合 ID');if(o.shadow.enabled||o.glow.enabled)throw Error('先关闭组合效果再解组');selection=C.ungroup(project,op.id);}
+   else if(op.action==='align'){const ids=agentIds(op.ids);C.align(project,ids,op.mode);selection=ids;}
+   else if(op.action==='distribute'){const ids=agentIds(op.ids);C.distribute(project,ids,op.axis);selection=ids;}
+   else if(op.action==='layer_create'){selection=[C.createLayer(project,op.parentId||null,op.name||'新图层')];created.push(...selection);}
+   else if(op.action==='layer_move'){C.moveLayer(project,op.id,op.parentId||null,op.beforeId||null);selection=[op.id];}
+   else if(op.action==='flip'){const ids=agentIds(op.ids);if(!['x','y'].includes(op.axis))throw Error('翻转轴须为 x 或 y');const b=C.union(ids.map(id=>C.bounds(project,project.objects.find(o=>o.id===id))));C.transformObjects(project,ids,C.around(b.x+b.w/2,b.y+b.h/2,op.axis==='x'?-1:1,op.axis==='y'?-1:1));selection=ids;}
+   else if(op.action==='canvas'){mergeAgentProps(project.canvas,op.props||{});}
+   else if(op.action==='animation'){mergeAgentProps(project.animation,op.props||{});}
+   else if(op.action==='project_name'){project.name=op.name;}
+   else if(op.action==='style_params'){const module=modules.find(m=>m.id===op.moduleId);if(!module)throw Error('风格模块不存在：'+op.moduleId);C.regenerate(project,module,op.params);}
+   else if(op.action==='style'){mergeAgentProps(project.style,op.props||{});}
+   else if(op.action==='sticker_insert'){const sticker=project.style.stickers[op.index];if(!sticker)throw Error('贴纸不存在');const temp=C.createProject();temp.objects=C.clone(sticker.objects);const roots=C.topIds(temp,temp.objects.map(o=>o.id));const ids=C.duplicate(temp,roots,0),clones=temp.objects.filter(o=>C.descendants(temp,ids).has(o.id));project.objects.push(...clones);selection=ids;created.push(...ids);C.transformObjects(project,ids,C.translate(Number(op.dx)||20,Number(op.dy)||20));}
+   else if(op.action==='sticker_save'){const roots=C.topIds(project,agentIds(op.ids)),ids=C.descendants(project,roots),objects=project.objects.filter(o=>ids.has(o.id)).map(C.clone);for(const o of objects)if(roots.includes(o.id)){o.m=C.worldMatrix(project,project.objects.find(n=>n.id===o.id));o.parentId=null;}project.style.stickers.push({name:op.name||'新贴纸',objects});}
+   else if(op.action==='reorder'){C.reorder(project,op.id,op.direction);}
+   else if(op.action==='mask'){selection=[C.createClippingMask(project,agentIds(op.ids))];created.push(...selection);}
+   else if(op.action==='unmask'){selection=C.releaseClippingMask(project,op.id);}
+   else throw Error('未知操作：'+op.action);
+  }});}catch(err){selection=beforeSelection;render();throw err;}
+  if(command.operations.some(op=>['style','style_params','sticker_save'].includes(op.action)))styleUI();
+  message('Codex 已更新 '+command.operations.length+' 项设计操作');
+  return{...agentState(),created};
+ }
+ throw Error('未知命令：'+action);
+}
+window.PosterEditor={getProject:()=>C.clone(project),getSVG:()=>R.svg(project,time),execute:agentExecute,inspect:agentState};
+window.PosterEditor.ready=guard(async()=>{await load(window.POSTER_INITIAL||C.createProject());});
 })();

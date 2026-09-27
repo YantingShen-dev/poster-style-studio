@@ -16,10 +16,12 @@ test('build writes a local editor and a self-contained static site to the select
   const hosted=fs.readFileSync(path.join(output,'site','index.html'),'utf8');
   assert.equal(hosted,local);
   assert.match(hosted,/window\.POSTER_INITIAL=/);
+  assert.match(hosted,/poster_live/);
   assert.match(hosted,/可编辑标题/);
   assert.doesNotMatch(hosted,/<script[^>]+src=|<link[^>]+stylesheet|file:\/\/|[A-Z]:\\/i);
   assert.equal(JSON.parse(fs.readFileSync(path.join(output,'initial.posterproj'),'utf8')).name,'部署验收');
   assert.match(fs.readFileSync(path.join(output,'使用说明.txt'),'utf8'),/site\/index\.html/);
+  assert.ok(fs.existsSync(path.join(output,'live_design.cjs')),'the optional local bridge is delivered with the workbench');
   const second=cp.spawnSync('python',[path.join(__dirname,'../scripts/build_editor.py'),'--project',initial,'--output',output],{encoding:'utf8'});
   assert.notEqual(second.status,0,'existing deliverable is never overwritten');
  }finally{

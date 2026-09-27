@@ -87,6 +87,10 @@ git clone https://github.com/YantingShen-dev/poster-style-studio.git "$env:USERP
 
 工作台的基础操作包括图层嵌套与蒙版、画布缩放与对齐、路径节点、图片裁切、纯色／多节点渐变／图案填充、描边、投影、发光及常用混合模式。贴纸以缩略图卡片显示并插入可编辑副本。锁定或标记为 `hitTest:false` 的装饰覆盖层不会拦截下方对象的画布选择。
 
+## 用 Codex 实时指挥设计
+
+生成的工作台附带 `live_design.cjs`。在本机运行 `node live_design.cjs serve /absolute/path/to/workbench`，打开命令显示的网址，即可让 Codex 通过本地指令读取当前工程、修改对象与风格参数、调整画布并看到页面立即更新。所有修改仍进入工作台的撤销历史；人工和 Codex 可以接续编辑。网页本身不内置 Agent，关闭本地服务后照常离线使用或静态部署。详细命令见 [实时设计接口](references/live-design.md)。
+
 ## 本地构建与验证
 
 从仓库根目录运行：

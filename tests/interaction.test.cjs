@@ -146,6 +146,7 @@ async function editorHarness(initial = C.createProject(), modules = []) {
       return element('styleControls').children.map(visit).find(Boolean);
     },
     project: () => context.PosterEditor.getProject(),
+    execute: command => context.PosterEditor.execute(command),
     key: (key, properties = {}, target = element('workspace')) => dispatch(target, 'keydown', {key, ...properties}),
     pointer: (type, point, properties = {}) => dispatch(element('workspace'), type, {...screen(point), ...properties})
   };
@@ -154,6 +155,59 @@ async function editorHarness(initial = C.createProject(), modules = []) {
 function near(actual, expected, message) {
   assert.ok(Math.abs(actual - expected) < 1e-7, `${message}: ${actual} != ${expected}`);
 }
+test('live agent edits share project validation, revision and undo with manual edits', async () => {
+  const h=await editorHarness(rectangleProject());
+  const initial=await h.execute({action:'inspect'});
+  const changed=await h.execute({action:'batch',expectedRevision:initial.revision,operations:[
+    {action:'update',changes:[{id:'shape',props:{fill:'#ff6600',shadow:{enabled:true}}}]},
+    {action:'create',objects:[{type:'text',name:'Agent 标题',text:'现场设计'}]}
+  ]});
+  assert.equal(h.project().objects.find(o=>o.id==='shape').fill,'#ff6600');
+  assert.equal(h.project().objects.find(o=>o.id==='shape').shadow.enabled,true);
+  assert.equal(h.project().objects.length,2);
+  assert.ok(changed.revision>initial.revision);
+  await assert.rejects(h.execute({action:'batch',expectedRevision:initial.revision,operations:[
+    {action:'delete',ids:['shape']}
+  ]}),/revision/);
+  await assert.rejects(h.execute({action:'batch',expectedRevision:changed.revision,operations:[
+    {action:'update',changes:[{id:'shape',props:{fill:'invalid'}}]}
+  ]}),/填充|颜色/);
+  assert.equal(h.project().objects.length,2,'invalid transaction is rolled back');
+  assert.equal(h.project().objects.find(o=>o.id==='shape').fill,'#ff6600');
+  await h.execute({action:'undo',expectedRevision:changed.revision});
+  assert.equal(h.project().objects.length,1);
+  assert.equal(h.project().objects[0].fill,'#282c38');
+});
+test('live agent can create a layer, move an object into it and reuse it as a sticker', async () => {
+  const h=await editorHarness(rectangleProject());
+  let state=await h.execute({action:'inspect'});
+  state=await h.execute({action:'batch',expectedRevision:state.revision,operations:[
+    {action:'layer_create',name:'内容组'}
+  ]});
+  const group=state.created[0];
+  state=await h.execute({action:'batch',expectedRevision:state.revision,operations:[
+    {action:'layer_move',id:'shape',parentId:group},
+    {action:'sticker_save',ids:[group],name:'可复用内容'},
+    {action:'sticker_insert',index:0,dx:30,dy:40}
+  ]});
+  assert.equal(h.project().objects.find(o=>o.id==='shape').parentId,group);
+  assert.equal(h.project().style.stickers[0].name,'可复用内容');
+  assert.equal(h.project().objects.filter(o=>o.type==='rect').length,2);
+  assert.equal(state.created.length,1,'inserting a grouped sticker returns its root id');
+});
+test('live agent imports an embedded image before creating an editable image object', async () => {
+  const h=await editorHarness();
+  let state=await h.execute({action:'inspect'});
+  const asset={id:'agent_image',name:'small.png',mime:'image/png',data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lE8AAAAASUVORK5CYII='};
+  state=await h.execute({action:'import_asset',expectedRevision:state.revision,asset});
+  assert.equal(h.project().assets.agent_image.name,'small.png');
+  state=await h.execute({action:'batch',expectedRevision:state.revision,operations:[
+    {action:'create',objects:[{type:'image',name:'可编辑图片',assetId:'agent_image'}]}
+  ]});
+  assert.equal(h.project().objects[0].type,'image');
+  assert.equal(h.project().objects[0].assetId,'agent_image');
+  assert.equal(state.created.length,1);
+});
 function rectangleProject() {
   const p = C.createProject();
   p.objects = [C.createObject('rect', {id: 'shape', m: C.translate(100, 100), w: 100, h: 100})];

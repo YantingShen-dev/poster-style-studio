@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('index.html', 'editor.css', 'core.js', 'render.js', 'style.js', 'initial.js', 'selection.js', 'workspace.js', 'editor.js')
+FILES = ('index.html', 'editor.css', 'core.js', 'render.js', 'style.js', 'initial.js', 'selection.js', 'workspace.js', 'editor.js', 'live_bridge.js')
 
 
 def main():
@@ -48,6 +48,7 @@ def main():
     site = output / 'site'
     site.mkdir()
     (site / 'index.html').write_text(html, encoding='utf-8')
+    shutil.copyfile(ROOT / 'scripts' / 'live_design.cjs', output / 'live_design.cjs')
     if args.project:
         (output / 'initial.posterproj').write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding='utf-8')
     (output / '使用说明.txt').write_text(
@@ -75,6 +76,8 @@ def main():
         '工程 v2 支持蒙版，可读取旧 v1。与伙伴接力时请同步新版工具。\n'
         'SVG 内图片仍为位图。PDF 使用浏览器打印，关闭页眉页脚并保持 100% 缩放。\n'
         'source 目录是工具源码；修改后需重新打包才能更新单文件工具。\n', encoding='utf-8')
+    with (output / '使用说明.txt').open('a', encoding='utf-8') as guide:
+        guide.write('本机实时指挥：安装 Node.js，在此目录运行 node live_design.cjs serve .，打开命令显示的本机网址；然后由 Codex 按 Skill 的实时设计接口发命令。网页不内置 Agent，关闭本地服务后仍可离线或部署使用。\n')
     print(f'Created local workbench: {output / "index.html"}')
     print(f'Created deployable site: {site / "index.html"}')
 
