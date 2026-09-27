@@ -1,0 +1,24 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Run editor tests
+        run: node --test tests/*.test.cjs
+      - name: Check skill package
+        run: python scripts/check_package.py
