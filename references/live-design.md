@@ -30,7 +30,7 @@ node /path/to/workbench/live_design.cjs call /path/to/workbench /path/to/command
 
 `batch` 内的操作作为一次可撤销事务提交。支持 `create`、`update`、`move`、`delete`、`duplicate`、`group`、`ungroup`、`align`、`distribute`、`layer_create`、`layer_move`、`reorder`、`mask`、`unmask`、`flip`、`sticker_insert`、`sticker_save`、`canvas`、`animation`、`project_name`、`style` 和 `style_params`。对象使用与人工界面相同的属性：矩阵、文字、路径节点、填充、渐变色标、图案、描边、透明度、混合模式、投影、发光、裁切、透视、图层和风格组件参数。创建对象优先用 `create` 继承默认属性；修改时指定对象 ID，嵌套属性局部合并。风格生成器用 `style_params`，以便让可见图形随参数即时再生成。
 
-单独的 `select`、`undo`、`redo`、`fit`、`save`、`import_asset` 和 `replace_project` 也需要 `expectedRevision`。`import_asset` 传入工程资源表格式的 `asset`，导入字体时同时传 `font`；图片先解码、字体先加载，然后才提交到工程。`replace_project` 用于复杂结构修改，但应从当前完整工程开始，保留人工操作和素材；替换前后仍经过校验并可撤销。只读 `inspect` 与 `svg` 不需要修订号。`export` 需修订号，支持 SVG、PNG、JPG，`call` 第四个参数可给本地输出文件。逐帧 PNG 可对每一时间点重复导出并打包，或用人工界面的逐帧导出。
+单独的 `select`、`undo`、`redo`、`fit`、`view`、`tool`、`enter_group`、`exit_group`、`frame`、`save`、`import_asset` 和 `replace_project` 也需要 `expectedRevision`。视图、工具、组内编辑和动画帧是页面状态，不改工程修订号。`import_asset` 传入工程资源表格式的 `asset`，导入字体时同时传 `font`；图片先解码、字体先加载，然后才提交到工程。`replace_project` 用于复杂结构修改，但应从当前完整工程开始，保留人工操作和素材；替换前后仍经过校验并可撤销。只读 `inspect` 与 `svg` 不需要修订号。`export` 需修订号，支持 SVG、PNG、JPG，`call` 第四个参数可给本地输出文件。逐帧 PNG 可对每一时间点重复导出并打包，或用人工界面的逐帧导出。
 
 ## 设计操作
 

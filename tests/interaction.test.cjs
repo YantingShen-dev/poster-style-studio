@@ -208,6 +208,22 @@ test('live agent imports an embedded image before creating an editable image obj
   assert.equal(h.project().objects[0].assetId,'agent_image');
   assert.equal(state.created.length,1);
 });
+test('live agent controls view, tool and group isolation without changing the artwork', async () => {
+  const p=rectangleProject();
+  p.objects.unshift(C.createObject('group',{id:'folder',m:C.identity()}));
+  p.objects.find(o=>o.id==='shape').parentId='folder';
+  const h=await editorHarness(p),before=JSON.stringify(h.project());
+  const state=await h.execute({action:'inspect'});
+  await h.execute({action:'view',expectedRevision:state.revision,zoom:.5,x:25,y:40});
+  assert.equal(h.view().zoom,.5);
+  await h.execute({action:'tool',expectedRevision:state.revision,name:'node'});
+  assert.equal((await h.execute({action:'inspect'})).tool,'node');
+  await h.execute({action:'enter_group',expectedRevision:state.revision,id:'folder'});
+  assert.equal((await h.execute({action:'inspect'})).editingGroup,'folder');
+  await h.execute({action:'exit_group',expectedRevision:state.revision});
+  assert.equal((await h.execute({action:'inspect'})).editingGroup,null);
+  assert.equal(JSON.stringify(h.project()),before);
+});
 function rectangleProject() {
   const p = C.createProject();
   p.objects = [C.createObject('rect', {id: 'shape', m: C.translate(100, 100), w: 100, h: 100})];
