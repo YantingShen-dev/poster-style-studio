@@ -1,9 +1,14 @@
 ---
 name: poster-style-studio
-description: 根据用户喜欢的海报位图，在指定位置生成可打开、可部署的网页海报工作台和工程；支持图层、矢量编辑、工程接力及通过本机桥接器让 Codex 实时操作画布。适用于搭建或迭代参考图专属设计工具。
+description: 根据参考海报生成可打开、可部署的网页设计工作台与工程，支持图层、矢量编辑、工程接力和 Codex 实时画布操作。Create deployable web poster workbenches from reference images, with layers, vector editing, project handoff, and live Codex canvas control.
 ---
 
 # 海报风格工作台
+
+## 语言 / Language
+
+- 中文任务继续使用本文件及其链接的中文参考文档。
+- For requests in English, read [SKILL.en.md](SKILL.en.md) and use its linked `.en.md` references. Match the user's language unless they ask otherwise.
 
 把设计判断转化为可复用对象、参数和操作，让非设计背景的伙伴能够接着创作。默认任务是**在磁盘上生成可实际打开的本地网页**，并交付已初始化的作品工程和成品预览。分析、设计方案、SVG 或图片都不能代替这个网页。除非用户明确只要求评估或缩小交付范围，完成条件是目标目录内的网页真实存在、能打开并加载该参考图的工作台。
 

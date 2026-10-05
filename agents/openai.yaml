@@ -1,6 +1,6 @@
 interface:
-  display_name: "海报风格工作台"
-  short_description: "从参考海报生成本地可编辑网页与可部署目录，支持工程接力"
-  default_prompt: "使用 $poster-style-studio 根据我的海报搭建网页工作台；先确认本地保存位置，实际生成 index.html、工程文件、预览和可部署的 site 目录。"
+  display_name: "Poster Style Studio / 海报风格工作台"
+  short_description: "Editable poster workbench / 可编辑海报工作台"
+  default_prompt: "Use $poster-style-studio to turn my reference poster into an editable local web workbench, and reply in my language. / 使用 $poster-style-studio 把参考海报做成可编辑的本地网页工作台，并用我的语言回复。"
 policy:
   allow_implicit_invocation: true
